@@ -1,50 +1,49 @@
 pipeline {
-    agent any 
-    
+    agent any
+
+    environment {
+        DOCKER_IMAGE = 'anastasiia25/final-project'
+       
+        REGISTRY_CREDENTIALS = 'docker-hub-credentials'
+    }
+
     stages {
-        
-        // 1: CHECKOUT
-        stage('Checkout Code') {
+       stage('Checkout Code') {
             steps {
-                echo 'Checking out source code from GitHub...'
-                
-                checkout scm 
-            }
-        }
-        
-        // 2: BUILD & TEST 
-        stage('Build and Test') {
-            steps {
-                echo 'Building application with Maven...'
-                
-                sh 'mvn clean install -DskipTests=false' 
+                checkout scm
             }
         }
 
-        // 3: DOCKER BUILD 
-        
-        stage('Docker Build') {
+        stage('Build & Test') {
             steps {
-                echo 'Building Docker Image...'
-               
-               script {
-                    def appImage = docker.build("my-repo/expression-app:${env.BUILD_ID}")
-                    
-                    // send to the DockerHub:
-                    docker.withRegistry('https://registry.hub.docker.com', 'docker-credentials')    {
-                         appImage.push()
-                        }
-                    
+                echo 'Building application...'
+                
+                sh 'mvn clean install -DskipTests=false'
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                script {
+                    echo 'Building Docker Image...'
+
+                    dockerImage = docker.build("${DOCKER_IMAGE}:${env.BUILD_ID}")
                 }
             }
         }
-        
-        // 4: DEPLOY
-        stage('Deployment') {
+
+        stage('Push to Docker Hub') {
             steps {
-                echo 'Deployment finished. Container image ready!'
-               
-                sh 'echo "Simulating deployment to target environment..."'
+                script {
+                    echo 'Pushing to Docker Hub...'
+                
+                    docker.withRegistry('', REGISTRY_CREDENTIALS) {
+                       
+                        dockerImage.push()
+                        
+                        dockerImage.push('latest')
+                    }
+                }
             }
         }
     }
